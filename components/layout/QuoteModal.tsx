@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { CheckCircle, AlertCircle, Upload, X, Send, FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { trackEvent, getStoredUtm } from '@/components/AnalyticsBeacon';
+import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
 import type { ModalOption } from '@/lib/load-quote-modal-options';
 
 type Status = 'idle' | 'sending' | 'success' | 'error';
@@ -22,12 +23,15 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
   const locale = useLocale();
   const textDir = locale === 'ar' ? 'rtl' : 'ltr';
 
-  const [mounted, setMounted]     = useState(false);
-  const [visible, setVisible]     = useState(false);
-  const [status, setStatus]       = useState<Status>('idle');
-  const [fileName, setFileName]   = useState<string | null>(null);
-  const [fileObj,  setFileObj]    = useState<File | null>(null);
-  const [dragging, setDragging]   = useState(false);
+  const [mounted, setMounted]         = useState(false);
+  const [visible, setVisible]         = useState(false);
+  const [status, setStatus]           = useState<Status>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [emailValue, setEmailValue]   = useState('');
+  const [emailError, setEmailError]   = useState<string | null>(null);
+  const [fileName, setFileName]       = useState<string | null>(null);
+  const [fileObj,  setFileObj]        = useState<File | null>(null);
+  const [dragging, setDragging]       = useState(false);
   const formRef     = useRef<HTMLFormElement>(null);
   const firstRef    = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +71,12 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
 
   const handleClose = useCallback(() => {
     setVisible(false);
-    setTimeout(onClose, 200);
+    setTimeout(() => {
+      onClose();
+      setStatus('idle');
+      setErrorMessage('');
+      setEmailError(null);
+    }, 200);
   }, [onClose]);
 
   function handleFile(file: File | undefined) {
@@ -78,8 +87,22 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStatus('sending');
+    setErrorMessage('');
+    setEmailError(null);
+
     const fd = new FormData(e.currentTarget);
+    const email = (fd.get('email') as string || emailValue).trim();
+
+    // Verify corporate email before attempting submit
+    const check = validateB2bEmail(email, locale as 'ar' | 'en');
+    if (!check.isValid) {
+      setEmailError(check.message);
+      setStatus('error');
+      setErrorMessage(check.message);
+      return;
+    }
+
+    setStatus('sending');
 
     let file_url: string | undefined;
     if (fileObj) {
@@ -104,18 +127,27 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
         body: JSON.stringify({
           name:         fd.get('name'),
           company:      fd.get('company'),
-          email:        fd.get('email'),
+          email,
           phone:        fd.get('phone'),
           project_type: fd.get('project_type'),
           timeline:     fd.get('timeline'),
           requirements: fd.get('requirements'),
           file_name:    fileName ?? undefined,
           file_url,
+          locale,
           ...getStoredUtm(),
         }),
       });
-      if (!res.ok) throw new Error();
+
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        throw new Error(resData.message || t('error'));
+      }
+
       setStatus('success');
+      setErrorMessage('');
+      setEmailError(null);
+      setEmailValue('');
       trackEvent('quote_submit', {
         project_type: fd.get('project_type'),
         timeline: fd.get('timeline'),
@@ -125,8 +157,9 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
       setFileName(null);
       setFileObj(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch {
+    } catch (err: unknown) {
       setStatus('error');
+      setErrorMessage(err instanceof Error ? err.message : t('error'));
     }
   }
 
@@ -243,7 +276,7 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
               {status === 'error' && (
                 <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
                   <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                  {t('error')}
+                  <span>{errorMessage || t('error')}</span>
                 </div>
               )}
 
@@ -288,10 +321,36 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
                     type="email"
                     required
                     autoComplete="email"
-                    className={inputCls}
-                    placeholder={t('field_email')}
+                    value={emailValue}
+                    onChange={(e) => {
+                      setEmailValue(e.target.value);
+                      if (emailError) setEmailError(null);
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) {
+                        const check = validateB2bEmail(val, locale as 'ar' | 'en');
+                        if (!check.isValid) {
+                          setEmailError(check.message);
+                        } else {
+                          setEmailError(null);
+                        }
+                      }
+                    }}
+                    className={`${inputCls} ${emailError ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
+                    placeholder="name@company.com"
                     dir="ltr"
                   />
+                  {emailError ? (
+                    <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+                      <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                      <span>{emailError}</span>
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      {t('field_email_hint')}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="qm-phone" className={labelCls}>{t('field_phone')}</label>

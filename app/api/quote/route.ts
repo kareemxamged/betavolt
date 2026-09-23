@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { sendSalesAlert, sendCustomerConfirmation, SalesAlertPayload } from '@/lib/notifications';
+import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,16 +15,26 @@ export async function POST(request: NextRequest) {
       requirements: string;
       file_name?: string;
       file_url?: string;
+      locale?: 'ar' | 'en';
       utm_source?: string;
       utm_medium?: string;
       utm_campaign?: string;
       utm_content?: string;
     };
 
-    const { name, company, email, phone, project_type, timeline, requirements, file_name, file_url, utm_source, utm_medium, utm_campaign, utm_content } = body;
+    const { name, company, email, phone, project_type, timeline, requirements, file_name, file_url, locale = 'ar', utm_source, utm_medium, utm_campaign, utm_content } = body;
 
     if (!name || !company || !project_type || !timeline || !requirements) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Corporate email verification
+    const emailValidation = validateB2bEmail(email, locale);
+    if (!emailValidation.isValid) {
+      return NextResponse.json({
+        error: emailValidation.errorType,
+        message: emailValidation.message,
+      }, { status: 422 });
     }
 
     const subject = `${project_type} — ${timeline}`;

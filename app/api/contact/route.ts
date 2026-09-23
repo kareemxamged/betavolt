@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { sendSalesAlert, sendCustomerConfirmation, SalesAlertPayload } from '@/lib/notifications';
+import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, company, email, phone, service, details, utm_source, utm_medium, utm_campaign, utm_content } = body;
+    const { name, company, email, phone, service, details, locale = 'ar', utm_source, utm_medium, utm_campaign, utm_content } = body;
 
     if (!name || !email || !service || !details) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Corporate email verification
+    const emailValidation = validateB2bEmail(email, locale);
+    if (!emailValidation.isValid) {
+      return NextResponse.json({
+        error: emailValidation.errorType,
+        message: emailValidation.message,
+      }, { status: 422 });
     }
 
     const { error } = await supabase.from('inquiries').insert([{

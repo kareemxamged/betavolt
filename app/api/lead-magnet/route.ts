@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { sendSalesAlert, sendCustomerConfirmation, SalesAlertPayload } from '@/lib/notifications';
+import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,7 @@ export async function POST(request: NextRequest) {
       phone: string;
       email: string;
       service_interest?: string;
+      locale?: 'ar' | 'en';
       utm_source?: string;
       utm_medium?: string;
       utm_campaign?: string;
@@ -22,6 +24,7 @@ export async function POST(request: NextRequest) {
       phone,
       email,
       service_interest,
+      locale = 'ar',
       utm_source,
       utm_medium,
       utm_campaign,
@@ -30,6 +33,15 @@ export async function POST(request: NextRequest) {
 
     if (!company?.trim() || !full_name?.trim() || !phone?.trim() || !email?.trim()) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Corporate email verification
+    const emailValidation = validateB2bEmail(email.trim(), locale);
+    if (!emailValidation.isValid) {
+      return NextResponse.json({
+        error: emailValidation.errorType,
+        message: emailValidation.message,
+      }, { status: 422 });
     }
 
     const serviceName = service_interest?.trim() || 'عام / كافة التخصصات';

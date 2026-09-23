@@ -67,7 +67,8 @@
     "subtitle": "Provide your project details and our engineering team will prepare a customised quote within 24 hours.",
     "field_name": "Contact Person",
     "field_company": "Company Name",
-    "field_email": "Email Address",
+    "field_email": "Corporate Email Address",
+    "field_email_hint": "Official corporate or business email only",
     "field_phone": "Phone Number",
     "field_project_type": "Project Type",
     "field_project_placeholder": "Select project type",
@@ -94,7 +95,8 @@
     "success_title": "Request Submitted",
     "success_body": "Our engineering team will review your requirements and contact you within 24 hours.",
     "success_close": "Close",
-    "error": "Something went wrong. Please try again or email us directly."
+    "error": "Something went wrong. Please try again or email us directly.",
+    "error_business_email": "Please provide an official corporate or business email address. Free webmail is not accepted."
   },
   "contact_page": {
     "eyebrow": "Get In Touch",
@@ -120,7 +122,8 @@
     "form_title": "Send an Inquiry",
     "form_name": "Full Name",
     "form_company": "Company Name",
-    "form_email": "Email Address",
+    "form_email": "Corporate Email Address",
+    "form_email_hint": "Official corporate or business email only",
     "form_phone": "Mobile Number",
     "form_service": "Service Required",
     "form_service_placeholder": "Select a service",
@@ -136,7 +139,8 @@
     "form_sending": "Sending...",
     "form_success_title": "Inquiry Received",
     "form_success_body": "Thank you. An engineer will review your inquiry and reach out within 24 hours.",
-    "form_error": "Something went wrong. Please try again or email us directly."
+    "form_error": "Something went wrong. Please try again or email us directly.",
+    "form_error_business_email": "Please provide an official corporate or business email address. Free webmail is not accepted."
   },
   "stats": {
     "stat1_value": "50+",

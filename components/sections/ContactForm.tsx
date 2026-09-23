@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CheckCircle, AlertCircle, Send } from 'lucide-react';
 import { trackEvent, getStoredUtm } from '@/components/AnalyticsBeacon';
+import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
 
 type Status = 'idle' | 'sending' | 'success' | 'error';
 
@@ -13,19 +14,37 @@ export default function ContactForm() {
   const textDir = locale === 'ar' ? 'rtl' : 'ltr';
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<Status>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [emailValue, setEmailValue] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStatus('sending');
+    setErrorMessage('');
+    setEmailError(null);
 
     const data = new FormData(e.currentTarget);
+    const email = (data.get('email') as string || emailValue).trim();
+
+    // Verify corporate email before attempting submit
+    const check = validateB2bEmail(email, locale as 'ar' | 'en');
+    if (!check.isValid) {
+      setEmailError(check.message);
+      setStatus('error');
+      setErrorMessage(check.message);
+      return;
+    }
+
+    setStatus('sending');
+
     const payload = {
       name:    data.get('name'),
       company: data.get('company'),
-      email:   data.get('email'),
+      email,
       phone:   data.get('phone'),
       service: data.get('service'),
       details: data.get('details'),
+      locale,
       ...getStoredUtm(),
     };
 
@@ -35,14 +54,23 @@ export default function ContactForm() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('server_error');
+
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        throw new Error(resData.message || t('form_error'));
+      }
+
       setStatus('success');
+      setErrorMessage('');
+      setEmailError(null);
+      setEmailValue('');
       trackEvent('contact_submit', {
         service: payload.service,
       });
       formRef.current?.reset();
-    } catch {
+    } catch (err: unknown) {
       setStatus('error');
+      setErrorMessage(err instanceof Error ? err.message : t('form_error'));
     }
   }
 
@@ -87,7 +115,7 @@ export default function ContactForm() {
       {status === 'error' && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
-          {t('form_error')}
+          <span>{errorMessage || t('form_error')}</span>
         </div>
       )}
 
@@ -131,10 +159,36 @@ export default function ContactForm() {
             type="email"
             required
             autoComplete="email"
-            className={inputBase}
+            value={emailValue}
+            onChange={(e) => {
+              setEmailValue(e.target.value);
+              if (emailError) setEmailError(null);
+            }}
+            onBlur={(e) => {
+              const val = e.target.value.trim();
+              if (val) {
+                const check = validateB2bEmail(val, locale as 'ar' | 'en');
+                if (!check.isValid) {
+                  setEmailError(check.message);
+                } else {
+                  setEmailError(null);
+                }
+              }
+            }}
+            className={`${inputBase} ${emailError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
             placeholder="name@company.com"
             dir="ltr"
           />
+          {emailError ? (
+            <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+              <AlertCircle size={13} className="shrink-0 mt-0.5" />
+              <span>{emailError}</span>
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+              {t('form_email_hint')}
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="phone" className={labelBase}>{t('form_phone')}</label>

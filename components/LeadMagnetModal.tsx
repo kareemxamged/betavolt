@@ -8,6 +8,7 @@ import {
   X, CheckCircle2, AlertCircle, Loader2, MessageSquare, ChevronDown,
 } from 'lucide-react';
 import { trackEvent, getStoredUtm } from '@/components/AnalyticsBeacon';
+import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
 
 interface LeadMagnetModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
   const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('/api/lead-magnet/download');
 
   const [formData, setFormData] = useState({
@@ -78,6 +80,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
       const timer = setTimeout(() => {
         setStatus('idle');
         setErrorMessage('');
+        setEmailError(null);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -100,13 +103,25 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus('submitting');
     setErrorMessage('');
+    setEmailError(null);
+
+    const email = formData.email.trim();
+    const check = validateB2bEmail(email, isAr ? 'ar' : 'en');
+    if (!check.isValid) {
+      setEmailError(check.message);
+      setStatus('error');
+      setErrorMessage(check.message);
+      return;
+    }
+
+    setStatus('submitting');
 
     try {
       const utm = getStoredUtm();
       const payload = {
         ...formData,
+        locale,
         ...utm,
       };
 
@@ -119,7 +134,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || (isAr ? 'حدث خطأ أثناء إرسال البيانات' : 'Failed to submit inquiry'));
+        throw new Error(data.message || data.error || (isAr ? 'حدث خطأ أثناء إرسال البيانات' : 'Failed to submit inquiry'));
       }
 
       const fileUrl = data.downloadUrl || '/api/lead-magnet/download';
@@ -364,16 +379,42 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
                     required
                     placeholder={isAr ? 'engineer@company.com.sa' : 'engineer@company.com.sa'}
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      if (emailError) setEmailError(null);
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) {
+                        const check = validateB2bEmail(val, isAr ? 'ar' : 'en');
+                        if (!check.isValid) {
+                          setEmailError(check.message);
+                        } else {
+                          setEmailError(null);
+                        }
+                      }
+                    }}
                     className={`
                       w-full ${isAr ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'} py-2.5 rounded-xl
-                      bg-[#070B14] border border-[#1E2D4A]
+                      bg-[#070B14] ${emailError ? 'border-rose-500 focus:ring-rose-500 focus:border-rose-500' : 'border-[#1E2D4A] focus:ring-cyan-400 focus:border-cyan-400'}
                       text-xs sm:text-sm text-white placeholder:text-slate-500
-                      focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                      focus:outline-none focus:ring-1
                       transition-colors
                     `}
                   />
                 </div>
+                {emailError ? (
+                  <p className="mt-1.5 text-xs text-rose-400 flex items-start gap-1 font-medium leading-tight">
+                    <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                    <span>{emailError}</span>
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    {isAr
+                      ? 'يُقبل فقط البريد المهني التابع لجهة العمل أو الشركة لتأكيد الاعتماد'
+                      : 'Corporate or official business domains only'}
+                  </p>
+                )}
               </div>
 
               {/* Service Interest */}
