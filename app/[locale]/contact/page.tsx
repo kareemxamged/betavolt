@@ -1,23 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import ContactForm from '@/components/sections/ContactForm';
-import { getContent } from '@/lib/content-store';
-
-interface ContactDetails {
-  email_general: string;
-  email_projects: string;
-  email_careers?: string;
-  phone: string;
-  whatsapp: string;
-}
-
-async function loadContactDetails(): Promise<ContactDetails> {
-  try {
-    const db = await getContent('contact-details');
-    if (db) return db as unknown as ContactDetails;
-  } catch { /* fall through */ }
-  return { email_general: 'info@betavolt.com.sa', email_projects: 'engineering@betavolt.com.sa', email_careers: 'careers@betavolt.com.sa', phone: '', whatsapp: '' };
-}
+import { getCompanyProfile } from '@/lib/company-profile';
 
 export const metadata: Metadata = {
   title: 'Contact Us – BetaVolt Engineering & Contracting',
@@ -117,11 +101,15 @@ function InfoRow({
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default async function ContactPage({ params }: Props) {
-  await params;
+  const { locale } = await params;
+  const isAr = locale === 'ar';
   const [t, details] = await Promise.all([
     getTranslations('contact_page'),
-    loadContactDetails(),
+    getCompanyProfile(),
   ]);
+
+  const displayAddress = (isAr ? details.address_ar : details.address_en) || t('address_value');
+  const displayHours = (isAr ? details.working_hours_ar : details.working_hours_en) || t('hours_value');
 
   return (
     <main className="overflow-x-hidden bg-white dark:bg-slate-900">
@@ -179,7 +167,7 @@ export default async function ContactPage({ params }: Props) {
 
               <div className="flex flex-col gap-6">
                 <InfoRow icon={MapPinIcon} label={t('address_label')}>
-                  {t('address_value')}
+                  {displayAddress}
                 </InfoRow>
 
                 {details.email_general && (
@@ -231,7 +219,7 @@ export default async function ContactPage({ params }: Props) {
                 )}
 
                 <InfoRow icon={ClockIcon} label={t('hours_label')}>
-                  {t('hours_value')}
+                  {displayHours}
                 </InfoRow>
               </div>
 
@@ -303,11 +291,11 @@ export default async function ContactPage({ params }: Props) {
                   </div>
 
                   <a
-                    href="mailto:careers@betavolt.com.sa"
+                    href={`mailto:${details.email_careers || 'careers@betavolt.com.sa'}`}
                     className="group flex items-center justify-between gap-3 p-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base sm:text-lg transition-all duration-200 shadow-md shadow-blue-600/25 hover:shadow-blue-600/40"
                     dir="ltr"
                   >
-                    <span className="truncate">careers@betavolt.com.sa</span>
+                    <span className="truncate">{details.email_careers || 'careers@betavolt.com.sa'}</span>
                     <span className="shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform">
                       <ArrowIcon />
                     </span>

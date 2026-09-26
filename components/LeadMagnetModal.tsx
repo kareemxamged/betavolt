@@ -237,7 +237,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
               </button>
 
               <a
-                href="https://wa.me/966500000000"
+                href="https://wa.me/966580178629"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="

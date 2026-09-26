@@ -2,6 +2,17 @@
   "email_general": "info@betavolt.com.sa",
   "email_projects": "engineering@betavolt.com.sa",
   "email_careers": "careers@betavolt.com.sa",
-  "phone": "+966 XX XXX XXXX",
-  "whatsapp": ""
+  "email_sales": "sales@betavolt.com.sa",
+  "email_inquiries": "inquiries@betavolt.com.sa",
+  "phone": "+966 58 017 8629",
+  "whatsapp": "+966 58 017 8629",
+  "city_ar": "الدمام",
+  "city_en": "Dammam",
+  "address_ar": "المدينة الصناعية الثانية، راديسون بلو، مدن، الدمام، EIGA7420",
+  "address_en": "2nd industrial city, Radisson Blu, MODON, Dammam, EIGA7420",
+  "working_hours_ar": "الأحد – الخميس  |  08:00 ص – 05:00 م",
+  "working_hours_en": "Sunday – Thursday  |  08:00 AM – 05:00 PM",
+  "alert_target_rfp": "inquiries@betavolt.com.sa",
+  "alert_target_contact": "inquiries@betavolt.com.sa",
+  "alert_target_lead_magnet": "sales@betavolt.com.sa"
 }

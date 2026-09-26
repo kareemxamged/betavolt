@@ -12,6 +12,7 @@
  */
 
 import { sendEmail } from '@/lib/mail';
+import { getCompanyProfile, formatWhatsAppUrl, CompanyProfile } from '@/lib/company-profile';
 
 export interface SalesAlertPayload {
   type: 'quote_request' | 'lead_magnet' | 'contact_message';
@@ -218,6 +219,7 @@ function parseRecipientList(envVal?: string, fallback: string[] = []): string[] 
  */
 export async function sendSalesAlert(payload: SalesAlertPayload): Promise<void> {
   const isLeadMagnet = payload.type === 'lead_magnet';
+  const profile = await getCompanyProfile();
 
   // 1. Resolve Senders & Recipients dynamically
   let fromAddress: string;
@@ -226,22 +228,22 @@ export async function sendSalesAlert(payload: SalesAlertPayload): Promise<void> 
   let subject: string;
 
   if (isLeadMagnet) {
-    // 1. Pre-Qualification Profile Download Alert: From noreply -> To inquiries
-    fromAddress = process.env.SALES_ALERT_FROM_EMAIL || 'BetaVolt System <noreply@betavolt.com.sa>';
-    toAddress = parseRecipientList(process.env.SALES_ALERT_EMAIL, ['inquiries@betavolt.com.sa']);
+    // 1. Pre-Qualification Profile Download Alert
+    fromAddress = process.env.SALES_ALERT_FROM_EMAIL || `BetaVolt System <${profile.email_inquiries || 'noreply@betavolt.com.sa'}>`;
+    toAddress = parseRecipientList(profile.alert_target_lead_magnet || process.env.SALES_ALERT_EMAIL, [profile.email_sales || 'sales@betavolt.com.sa']);
     subject = `🎯 [تنبيه مبيعات وتسويق] تحميل الملف التعريفي وسابقة الأعمال — ${payload.company} (${payload.name})`;
   } else if (payload.type === 'quote_request') {
-    // 2. Official RFP Quotation Request: From noreply -> To inquiries
-    fromAddress = process.env.QUOTE_FROM_EMAIL || 'BetaVolt System <noreply@betavolt.com.sa>';
-    toAddress = parseRecipientList(process.env.QUOTE_TARGET_EMAIL, ['inquiries@betavolt.com.sa']);
+    // 2. Official RFP Quotation Request
+    fromAddress = process.env.QUOTE_FROM_EMAIL || `BetaVolt System <${profile.email_inquiries || 'noreply@betavolt.com.sa'}>`;
+    toAddress = parseRecipientList(profile.alert_target_rfp || process.env.QUOTE_TARGET_EMAIL, [profile.email_inquiries || 'inquiries@betavolt.com.sa']);
     subject = `⚡ [طلب عرض سعر رسمي — RFP] ${payload.company} | مشروع: ${payload.service || 'مشروع جديد'} (${payload.name})`;
     if (process.env.INQUIRIES_CC_EMAIL) {
       ccAddress = parseRecipientList(process.env.INQUIRIES_CC_EMAIL);
     }
   } else {
-    // 3. Website Contact Inquiries: From noreply -> To inquiries
-    fromAddress = process.env.CONTACT_FROM_EMAIL || 'BetaVolt System <noreply@betavolt.com.sa>';
-    toAddress = parseRecipientList(process.env.CONTACT_TARGET_EMAIL, ['inquiries@betavolt.com.sa']);
+    // 3. Website Contact Inquiries
+    fromAddress = process.env.CONTACT_FROM_EMAIL || `BetaVolt System <${profile.email_inquiries || 'noreply@betavolt.com.sa'}>`;
+    toAddress = parseRecipientList(profile.alert_target_contact || process.env.CONTACT_TARGET_EMAIL, [profile.email_inquiries || 'inquiries@betavolt.com.sa']);
     subject = `📩 [استفسار وتواصل عام] ${payload.name} (${payload.company || 'جهة عامة'}) — ${payload.subject || 'عام'}`;
     if (process.env.INQUIRIES_CC_EMAIL) {
       ccAddress = parseRecipientList(process.env.INQUIRIES_CC_EMAIL);
@@ -301,7 +303,7 @@ export async function sendSalesAlert(payload: SalesAlertPayload): Promise<void> 
 /**
  * Generates an executive, client-facing HTML confirmation email.
  */
-function generateCustomerConfirmationEmail(payload: SalesAlertPayload): string {
+function generateCustomerConfirmationEmail(payload: SalesAlertPayload, profile?: CompanyProfile): string {
   const isQuote = payload.type === 'quote_request';
   const isLeadMagnet = payload.type === 'lead_magnet';
   const timestamp = new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' });
@@ -337,6 +339,12 @@ function generateCustomerConfirmationEmail(payload: SalesAlertPayload): string {
   const actionButtons = isLeadMagnet
     ? '<a href="https://betavolt.com.sa/api/lead-magnet/download" class="btn btn-primary" target="_blank">📥 تحميل الملف التعريفي وسابقة الأعمال (PDF)</a>'
     : '<a href="https://betavolt.com.sa/api/lead-magnet/download" class="btn btn-primary" target="_blank">📄 استعراض سابقة أعمال بيتافولت</a>';
+
+  const waUrl = profile?.whatsapp ? formatWhatsAppUrl(profile.whatsapp) : 'https://wa.me/966580178629';
+  const cityAr = profile?.city_ar || 'الدمام';
+  const cityEn = profile?.city_en || 'Dammam';
+  const addressAr = profile?.address_ar || 'المدينة الصناعية الثانية، مودون، الدمام';
+  const officialEmail = profile?.email_inquiries || 'inquiries@betavolt.com.sa';
 
   return `
 <!DOCTYPE html>
@@ -417,7 +425,7 @@ function generateCustomerConfirmationEmail(payload: SalesAlertPayload): string {
 
       <div class="actions">
         ${actionButtons}
-        <a href="https://wa.me/966500000000" class="btn btn-wa" target="_blank">💬 التواصل المباشر عبر واتساب</a>
+        <a href="${waUrl}" class="btn btn-wa" target="_blank">💬 التواصل المباشر عبر واتساب</a>
       </div>
 
       <div class="reply-note">
@@ -428,8 +436,9 @@ function generateCustomerConfirmationEmail(payload: SalesAlertPayload): string {
 
     <div class="footer">
       <strong>شركة بيتافولت للمقاولات | BetaVolt Contracting Co.</strong><br>
-      المملكة العربية السعودية — الرياض | Kingdom of Saudi Arabia — Riyadh<br>
-      البريد الرسمي: <a href="mailto:inquiries@betavolt.com.sa">inquiries@betavolt.com.sa</a> | الموقع: <a href="https://betavolt.com.sa">www.betavolt.com.sa</a><br>
+      المملكة العربية السعودية — ${cityAr} | Kingdom of Saudi Arabia — ${cityEn}<br>
+      ${addressAr}<br>
+      البريد الرسمي: <a href="mailto:${officialEmail}">${officialEmail}</a> | الموقع: <a href="https://betavolt.com.sa">www.betavolt.com.sa</a><br>
       © ${new Date().getFullYear()} بيتافولت. جميع الحقوق محفوظة.
     </div>
   </div>
@@ -449,8 +458,10 @@ export async function sendCustomerConfirmation(payload: SalesAlertPayload): Prom
     return;
   }
 
+  const profile = await getCompanyProfile();
+  const fromInbox = profile.email_inquiries || 'inquiries@betavolt.com.sa';
   const fromAddress = process.env.CUSTOMER_CONFIRMATION_FROM_EMAIL ||
-                      'بيتافولت للمقاولات | BetaVolt Contracting <inquiries@betavolt.com.sa>';
+                      `بيتافولت للمقاولات | BetaVolt Contracting <${fromInbox}>`;
 
   let subject: string;
   if (payload.type === 'quote_request') {
@@ -462,11 +473,11 @@ export async function sendCustomerConfirmation(payload: SalesAlertPayload): Prom
   }
 
   try {
-    const htmlBody = generateCustomerConfirmationEmail(payload);
+    const htmlBody = generateCustomerConfirmationEmail(payload, profile);
     await sendEmail({
       from: fromAddress,
       to: payload.email.trim(),
-      replyTo: 'inquiries@betavolt.com.sa',
+      replyTo: fromInbox,
       subject,
       html: htmlBody,
     });

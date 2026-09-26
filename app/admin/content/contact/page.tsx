@@ -1,25 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, Mail, Phone, MessageCircle, Save, RefreshCw } from 'lucide-react';
+import { ChevronDown, Mail, Phone, MessageCircle, Save, RefreshCw, Bell, Briefcase } from 'lucide-react';
 import { useAdminLang } from '@/components/admin/AdminLangProvider';
-
-/* ─── Types ──────────────────────────────────────────── */
-interface ContactDetails {
-  email_general:  string;
-  email_projects: string;
-  email_careers?: string;
-  phone:          string;
-  whatsapp:       string;
-}
+import { CompanyProfile, DEFAULT_COMPANY_PROFILE } from '@/lib/company-profile-types';
 
 /* ─── Bilingual labels ───────────────────────────────── */
 const L = {
   en: {
-    pageTitle:    'Contact Page Content',
-    pageDesc:     'Edit bilingual text and contact details for the Contact Us public page.',
-    sectionA:     'A — Page Header',
-    sectionB:     'B — Company Contact Details',
+    pageTitle:    'Company Profile, Locations & Inboxes',
+    pageDesc:     'Centralized management for official headquarters, city, corporate email addresses, phone/WhatsApp, and automated notification routing.',
+    sectionA:     'A — Public Page Header & Promise',
+    sectionB:     'B — Headquarters & City Location',
+    sectionC:     'C — Corporate Email Inboxes',
+    sectionD:     'D — Phone & Instant Messaging',
+    sectionE:     'E — Automated Notification Recipients',
     eyebrow:      'Eyebrow Tag',
     mainTitle:    'Main Title',
     subtitle:     'Subtitle',
@@ -34,23 +29,32 @@ const L = {
     careersSub:   'Careers Subtitle / Description',
     careersCta:   'Careers CTA Label',
     careersBadge: 'Careers Security / HR Badge',
+    cityLabel:    'Headquarters City',
+    cityDesc:     'City displayed across website badges and email notification footers (e.g. Dammam).',
     addressLabel: 'Address Label',
-    addressValue: 'Address Value',
-    divEmail:     'Email Addresses',
+    addressValue: 'Full Physical Address',
+    divEmail:     'Corporate Email Inboxes',
     emailGenLabel:'General Email Label',
-    emailGenAddr: 'General Email Address',
+    emailGenAddr: 'General Inquiries Email',
     emailProjLabel:'Projects Email Label',
-    emailProjAddr: 'Projects Email Address',
+    emailProjAddr: 'Projects & Engineering Email',
     emailCarLabel:'Careers Email Label',
-    emailCarAddr: 'Careers Email Address',
-    divPhone:     'Phone Numbers',
+    emailCarAddr: 'Careers & Talent Email',
+    emailSalesAddr:'Sales & Quotations Email',
+    emailInquiriesAddr:'Official System / Intake Email',
+    divPhone:     'Phone & WhatsApp',
     phoneLabel:   'Phone Label',
-    phoneNum:     'Primary Phone Number',
-    whatsapp:     'WhatsApp / Support',
-    whatsappNum:  'WhatsApp Number',
+    phoneNum:     'Primary Official Phone Number',
+    whatsapp:     'Official WhatsApp / Support Link',
+    whatsappNum:  'WhatsApp Phone Number (with country code)',
     divHours:     'Working Hours',
     hoursLabel:   'Hours Label',
-    hoursValue:   'Hours Value',
+    hoursValue:   'Working Hours (Bilingual)',
+    alertTargets: 'Notification Routing Targets',
+    alertTargetsDesc: 'Configure which internal corporate inboxes receive immediate alerts when customers submit forms.',
+    alertRfp:     'RFP Quotation Requests Destination',
+    alertContact: 'General Inquiries Destination',
+    alertLead:    'Pre-Qualification Downloads Destination',
     flagEn:       '🇬🇧',
     flagAr:       '🇸🇦',
     colEn:        'English',
@@ -58,13 +62,16 @@ const L = {
     save:         'Save Changes',
     saving:       'Saving…',
     saved:        '✓ Saved!',
-    saveHint:     'Saves bilingual text to message files and contact details to JSON.',
+    saveHint:     'Saves to Supabase site_content, messages files, and updates all customer notification templates immediately.',
   },
   ar: {
-    pageTitle:    'محتوى صفحة التواصل',
-    pageDesc:     'تعديل النصوص ثنائية اللغة وبيانات التواصل لصفحة "اتصل بنا" العامة.',
-    sectionA:     'أ — رأس الصفحة',
-    sectionB:     'ب — بيانات التواصل مع الشركة',
+    pageTitle:    'بيانات الشركة، العناوين وصناديق البريد',
+    pageDesc:     'إدارة مركزية موحدة لمقر الشركة، المدينة، عناوين البريد الإلكتروني الرسمية، أرقام التواصل والواتساب، وتوجيه الإشعارات التلقائية.',
+    sectionA:     'أ — رأس الصفحة العامة والوعد',
+    sectionB:     'ب — المقر الرئيسي والمدينة',
+    sectionC:     'ج — عناوين البريد الإلكتروني للشركة',
+    sectionD:     'د — الهاتف والمراسلة الفورية',
+    sectionE:     'هـ — وجهات استلام الإشعارات التلقائية',
     eyebrow:      'النص الصغير فوق العنوان',
     mainTitle:    'العنوان الرئيسي',
     subtitle:     'العنوان الفرعي',
@@ -73,29 +80,38 @@ const L = {
     divPromise:   'صندوق وعد الرد',
     promiseTitle: 'عنوان الوعد',
     promiseBody:  'نص الوعد',
-    divCareers:   'قسم التوظيف وبناء المستقبل المستقل',
+    divCareers:   'قسم التوظيف وبناء المستقبل',
     careersEyebrow: 'النص الصغير فوق عنوان التوظيف',
     careersTitle: 'عنوان قسم التوظيف الرئيسي',
     careersSub:   'وصف/نص قسم التوظيف',
     careersCta:   'تسمية زر إرسال السيرة الذاتية',
     careersBadge: 'شارة الموارد البشرية / المراجعة',
+    cityLabel:    'مدينة المقر الرئيسي',
+    cityDesc:     'المدينة التي تظهر في شارات الموقع وفوتر كافة الإيميلات المرسلة للعملاء (مثال: الدمام).',
     addressLabel: 'تسمية العنوان',
-    addressValue: 'قيمة العنوان',
-    divEmail:     'عناوين البريد الإلكتروني',
+    addressValue: 'العنوان الوطني / التفصيلي للمقر',
+    divEmail:     'عناوين البريد الإلكتروني المعتمدة',
     emailGenLabel:'تسمية البريد العام',
-    emailGenAddr: 'عنوان البريد العام',
+    emailGenAddr: 'البريد العام للاستفسارات',
     emailProjLabel:'تسمية بريد المشاريع',
-    emailProjAddr: 'بريد استفسارات المشاريع',
+    emailProjAddr: 'بريد المشاريع والهندسة',
     emailCarLabel:'تسمية بريد التوظيف',
     emailCarAddr: 'بريد التوظيف والسير الذاتية',
-    divPhone:     'أرقام الهواتف',
+    emailSalesAddr:'بريد المبيعات والعروض الفنية',
+    emailInquiriesAddr:'بريد الاستقبال والأنظمة الرسمي',
+    divPhone:     'الهاتف والواتساب',
     phoneLabel:   'تسمية الهاتف',
-    phoneNum:     'رقم الهاتف الرئيسي',
-    whatsapp:     'واتساب / الدعم',
-    whatsappNum:  'رقم واتساب',
+    phoneNum:     'رقم الهاتف الرسمي الأساسي',
+    whatsapp:     'رقم الواتساب الرسمي والدعم المباشر',
+    whatsappNum:  'رقم الواتساب (مسبوقاً برمز الدولة)',
     divHours:     'ساعات العمل',
     hoursLabel:   'تسمية ساعات العمل',
-    hoursValue:   'قيمة ساعات العمل',
+    hoursValue:   'مواعيد وساعات العمل',
+    alertTargets: 'صناديق استقبال التنبيهات الفورية',
+    alertTargetsDesc: 'حدد الإيميلات الداخلية التي يصلها إشعار فوري عند قيام العملاء بتعبئة نماذج الموقع.',
+    alertRfp:     'إيميل استقبال طلبات عروض الأسعار (RFP)',
+    alertContact: 'إيميل استقبال رسائل التواصل العام',
+    alertLead:    'إيميل استقبال تنبيهات تحميل سابقة الأعمال',
     flagEn:       '🇬🇧',
     flagAr:       '🇸🇦',
     colEn:        'الإنجليزية',
@@ -103,7 +119,7 @@ const L = {
     save:         'حفظ التغييرات',
     saving:       'جارٍ الحفظ…',
     saved:        '✓ تم الحفظ!',
-    saveHint:     'يتم الحفظ في ملفات الرسائل وملف بيانات التواصل JSON.',
+    saveHint:     'يتم الحفظ في قاعدة بيانات Supabase وملفات الترجمة وتحديث قوالب رسائل العملاء فورياً.',
   },
 };
 
@@ -155,16 +171,21 @@ function BiField({
 
 /* ─── SingleField ────────────────────────────────────── */
 function SingleField({
-  label, value, onChange, placeholder = '', icon: Icon, type = 'text',
+  label, value, onChange, placeholder = '', icon: Icon, type = 'text', hint,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; icon?: React.ElementType; type?: string;
+  placeholder?: string; icon?: React.ComponentType<{ size?: number; className?: string }>;
+  type?: string; hint?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div>
       <label className={LABEL}>{label}</label>
-      <div className={Icon ? ICON_WRAP : ''}>
-        {Icon && <span className={ICON_INSET}><Icon size={15} strokeWidth={1.75} /></span>}
+      <div className={ICON_WRAP}>
+        {Icon && (
+          <span className={ICON_INSET}>
+            <Icon size={14} />
+          </span>
+        )}
         <input
           type={type}
           className={Icon ? INPUT + ' ps-9' : INPUT}
@@ -174,6 +195,7 @@ function SingleField({
           dir="ltr"
         />
       </div>
+      {hint && <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -218,7 +240,7 @@ function FieldDivider({ label }: { label: string }) {
   );
 }
 
-/* ─── Page ───────────────────────────────────────────── */
+/* ─── Page Component ─────────────────────────────────── */
 export default function ContactContentPage() {
   const { lang } = useAdminLang();
   const t = L[lang];
@@ -226,9 +248,7 @@ export default function ContactContentPage() {
 
   const [pageEn,  setPageEn]  = useState<Record<string, string>>({});
   const [pageAr,  setPageAr]  = useState<Record<string, string>>({});
-  const [details, setDetails] = useState<ContactDetails>({
-    email_general: '', email_projects: '', email_careers: '', phone: '', whatsapp: '',
-  });
+  const [details, setDetails] = useState<CompanyProfile>(DEFAULT_COMPANY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
@@ -239,7 +259,10 @@ export default function ContactContentPage() {
       .then(d => {
         setPageEn(d.pageContent.en ?? {});
         setPageAr(d.pageContent.ar ?? {});
-        setDetails(d.details);
+        setDetails({
+          ...DEFAULT_COMPANY_PROFILE,
+          ...(d.details ?? {}),
+        });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -248,7 +271,7 @@ export default function ContactContentPage() {
   const ar      = (k: string) => pageAr[k] ?? '';
   const setEn   = (k: string, v: string) => setPageEn(p => ({ ...p, [k]: v }));
   const setAr   = (k: string, v: string) => setPageAr(p => ({ ...p, [k]: v }));
-  const setDetail = (k: keyof ContactDetails, v: string) =>
+  const setDetail = (k: keyof CompanyProfile, v: string) =>
     setDetails(d => ({ ...d, [k]: v }));
 
   const handleSave = useCallback(async () => {
@@ -257,7 +280,10 @@ export default function ContactContentPage() {
       const res = await fetch('/api/admin/content/contact', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ pageContent: { en: pageEn, ar: pageAr }, details }),
+        body:    JSON.stringify({
+          pageContent: { en: pageEn, ar: pageAr },
+          details,
+        }),
       });
       if (!res.ok) throw new Error();
       setSaved(true);
@@ -286,7 +312,7 @@ export default function ContactContentPage() {
       </div>
 
       {/* A — Page Header */}
-      <SectionCard title={t.sectionA} badge="A" defaultOpen>
+      <SectionCard title={t.sectionA} badge="A" defaultOpen={false}>
         <BiField t={t} label={t.eyebrow}
           valueEn={en('eyebrow')} valueAr={ar('eyebrow')}
           onEn={v => setEn('eyebrow', v)} onAr={v => setAr('eyebrow', v)}
@@ -315,7 +341,7 @@ export default function ContactContentPage() {
           valueEn={en('promise_body')} valueAr={ar('promise_body')}
           onEn={v => setEn('promise_body', v)} onAr={v => setAr('promise_body', v)}
           placeholderEn="Our support team will review your inquiry…"
-          placeholderAr="سيراجع الدعم لدينا استفساركم…" />
+          placeholderAr="سيراجع الدعم لدينا استفساركم ويتواصل معكم في أقرب وقت." />
         <FieldDivider label={t.divCareers} />
         <BiField t={t} label={t.careersEyebrow}
           valueEn={en('careers_eyebrow')} valueAr={ar('careers_eyebrow')}
@@ -340,19 +366,43 @@ export default function ContactContentPage() {
           placeholderEn="Direct HR Review" placeholderAr="مراجعة مباشرة من الموارد البشرية" />
       </SectionCard>
 
-      {/* B — Contact Details */}
+      {/* B — Headquarters & City Location */}
       <SectionCard title={t.sectionB} badge="B" defaultOpen>
+        <BiField t={t} label={t.cityLabel}
+          valueEn={details.city_en} valueAr={details.city_ar}
+          onEn={v => setDetail('city_en', v)} onAr={v => setDetail('city_ar', v)}
+          placeholderEn="Dammam" placeholderAr="الدمام" />
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 -mt-2 mb-2">{t.cityDesc}</p>
+
         <BiField t={t} label={t.addressLabel}
           valueEn={en('address_label')} valueAr={ar('address_label')}
           onEn={v => setEn('address_label', v)} onAr={v => setAr('address_label', v)}
           placeholderEn="Headquarters" placeholderAr="المقر الرئيسي" />
+
         <BiField t={t} label={t.addressValue} rows={2}
-          valueEn={en('address_value')} valueAr={ar('address_value')}
-          onEn={v => setEn('address_value', v)} onAr={v => setAr('address_value', v)}
+          valueEn={details.address_en || en('address_value')}
+          valueAr={details.address_ar || ar('address_value')}
+          onEn={v => { setDetail('address_en', v); setEn('address_value', v); }}
+          onAr={v => { setDetail('address_ar', v); setAr('address_value', v); }}
           placeholderEn="2nd industrial city, Radisson Blu, MODON, Dammam, EIGA7420"
           placeholderAr="المدينة الصناعية الثانية، راديسون بلو، مدن، الدمام، EIGA7420" />
 
-        <FieldDivider label={t.divEmail} />
+        <FieldDivider label={t.divHours} />
+        <BiField t={t} label={t.hoursLabel}
+          valueEn={en('hours_label')} valueAr={ar('hours_label')}
+          onEn={v => setEn('hours_label', v)} onAr={v => setAr('hours_label', v)}
+          placeholderEn="Working Hours" placeholderAr="ساعات العمل" />
+        <BiField t={t} label={t.hoursValue}
+          valueEn={details.working_hours_en || en('hours_value')}
+          valueAr={details.working_hours_ar || ar('hours_value')}
+          onEn={v => { setDetail('working_hours_en', v); setEn('hours_value', v); }}
+          onAr={v => { setDetail('working_hours_ar', v); setAr('hours_value', v); }}
+          placeholderEn="Sunday – Thursday  |  08:00 AM – 05:00 PM"
+          placeholderAr="الأحد – الخميس  |  08:00 ص – 05:00 م" />
+      </SectionCard>
+
+      {/* C — Corporate Email Inboxes */}
+      <SectionCard title={t.sectionC} badge="C" defaultOpen>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-3">
             <BiField t={t} label={t.emailGenLabel}
@@ -363,6 +413,7 @@ export default function ContactContentPage() {
               onChange={v => setDetail('email_general', v)} placeholder="info@betavolt.com.sa"
               icon={Mail} type="email" />
           </div>
+
           <div className="space-y-3">
             <BiField t={t} label={t.emailProjLabel}
               valueEn={en('email_projects_label')} valueAr={ar('email_projects_label')}
@@ -372,18 +423,33 @@ export default function ContactContentPage() {
               onChange={v => setDetail('email_projects', v)} placeholder="engineering@betavolt.com.sa"
               icon={Mail} type="email" />
           </div>
-          <div className="space-y-3 sm:col-span-2">
+
+          <div className="space-y-3">
             <BiField t={t} label={t.emailCarLabel}
               valueEn={en('email_careers_label')} valueAr={ar('email_careers_label')}
               onEn={v => setEn('email_careers_label', v)} onAr={v => setAr('email_careers_label', v)}
               placeholderEn="Careers & Talent" placeholderAr="التوظيف والوظائف" />
-            <SingleField label={t.emailCarAddr} value={details.email_careers ?? ''}
+            <SingleField label={t.emailCarAddr} value={details.email_careers}
               onChange={v => setDetail('email_careers', v)} placeholder="careers@betavolt.com.sa"
+              icon={Briefcase} type="email" />
+          </div>
+
+          <div className="space-y-3">
+            <SingleField label={t.emailSalesAddr} value={details.email_sales}
+              onChange={v => setDetail('email_sales', v)} placeholder="sales@betavolt.com.sa"
               icon={Mail} type="email" />
           </div>
-        </div>
 
-        <FieldDivider label={t.divPhone} />
+          <div className="space-y-3 sm:col-span-2">
+            <SingleField label={t.emailInquiriesAddr} value={details.email_inquiries}
+              onChange={v => setDetail('email_inquiries', v)} placeholder="inquiries@betavolt.com.sa"
+              icon={Mail} type="email" hint="Official mailbox used to send customer confirmation emails and receive proposals." />
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* D — Phone & WhatsApp */}
+      <SectionCard title={t.sectionD} badge="D" defaultOpen>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-3">
             <BiField t={t} label={t.phoneLabel}
@@ -391,28 +457,51 @@ export default function ContactContentPage() {
               onEn={v => setEn('phone_label', v)} onAr={v => setAr('phone_label', v)}
               placeholderEn="Phone" placeholderAr="الهاتف" />
             <SingleField label={t.phoneNum} value={details.phone}
-              onChange={v => setDetail('phone', v)} placeholder="+966 XX XXX XXXX"
+              onChange={v => setDetail('phone', v)} placeholder="+966 58 017 8629"
               icon={Phone} type="tel" />
           </div>
           <div className="space-y-3">
-            <p className={LABEL}>{t.whatsapp}</p>
-            <div className="h-[calc(1.75rem+2px)]" aria-hidden="true" />
+            <label className={LABEL}>{t.whatsapp}</label>
+            <div className="h-[calc(1.75rem+2px)] hidden sm:block" aria-hidden="true" />
             <SingleField label={t.whatsappNum} value={details.whatsapp}
-              onChange={v => setDetail('whatsapp', v)} placeholder="+966 XX XXX XXXX"
+              onChange={v => setDetail('whatsapp', v)} placeholder="+966 58 017 8629"
               icon={MessageCircle} type="tel" />
           </div>
         </div>
+      </SectionCard>
 
-        <FieldDivider label={t.divHours} />
-        <BiField t={t} label={t.hoursLabel}
-          valueEn={en('hours_label')} valueAr={ar('hours_label')}
-          onEn={v => setEn('hours_label', v)} onAr={v => setAr('hours_label', v)}
-          placeholderEn="Working Hours" placeholderAr="ساعات العمل" />
-        <BiField t={t} label={t.hoursValue}
-          valueEn={en('hours_value')} valueAr={ar('hours_value')}
-          onEn={v => setEn('hours_value', v)} onAr={v => setAr('hours_value', v)}
-          placeholderEn="Sunday – Thursday  |  08:00 AM – 05:00 PM"
-          placeholderAr="الأحد – الخميس  |  08:00 ص – 05:00 م" />
+      {/* E — Notification Alert Routing Targets */}
+      <SectionCard title={t.sectionE} badge="E" defaultOpen>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{t.alertTargetsDesc}</p>
+        <div className="space-y-4">
+          <SingleField
+            label={t.alertRfp}
+            value={details.alert_target_rfp || ''}
+            onChange={v => setDetail('alert_target_rfp', v)}
+            placeholder="inquiries@betavolt.com.sa"
+            icon={Bell}
+            type="text"
+            hint="Multiple emails can be separated by commas (e.g. inquiries@betavolt.com.sa, sales@betavolt.com.sa)"
+          />
+          <SingleField
+            label={t.alertContact}
+            value={details.alert_target_contact || ''}
+            onChange={v => setDetail('alert_target_contact', v)}
+            placeholder="inquiries@betavolt.com.sa"
+            icon={Bell}
+            type="text"
+            hint="Receives customer inquiries submitted via the Contact Us form."
+          />
+          <SingleField
+            label={t.alertLead}
+            value={details.alert_target_lead_magnet || ''}
+            onChange={v => setDetail('alert_target_lead_magnet', v)}
+            placeholder="sales@betavolt.com.sa"
+            icon={Bell}
+            type="text"
+            hint="Receives notifications when a prospective client downloads the company pre-qualification dossier."
+          />
+        </div>
       </SectionCard>
 
       {/* Floating save bar */}

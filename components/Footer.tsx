@@ -3,28 +3,9 @@ import { join } from 'path';
 import { getContent } from '@/lib/content-store';
 import Image from 'next/image';
 import { Link } from '@/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { MapPin, Mail, Phone, MessageCircle } from 'lucide-react';
-
-/* ─── Contact details from CMS JSON ─────────────────── */
-interface ContactDetails {
-  email_general:  string;
-  email_projects: string;
-  phone:          string;
-  whatsapp:       string;
-}
-
-async function loadContactDetails(): Promise<ContactDetails> {
-  try {
-    const db = await getContent('contact-details');
-    if (db) return db as unknown as ContactDetails;
-  } catch { /* fall through */ }
-  try {
-    return JSON.parse(readFileSync(join(process.cwd(), 'data', 'contact-details.json'), 'utf-8'));
-  } catch {
-    return { email_general: '', email_projects: '', phone: '', whatsapp: '' };
-  }
-}
+import { getCompanyProfile } from '@/lib/company-profile';
 
 /* ─── Footer content (social links) from CMS JSON ───── */
 interface FooterContent {
@@ -145,9 +126,10 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
 
 /* ─── Footer ─────────────────────────────────────────── */
 export default async function Footer() {
-  const [details, footerContent] = await Promise.all([
-    loadContactDetails(),
+  const [details, footerContent, locale] = await Promise.all([
+    getCompanyProfile(),
     loadFooterContent(),
+    getLocale(),
   ]);
   const year          = new Date().getFullYear();
 
@@ -156,6 +138,9 @@ export default async function Footer() {
     getTranslations('nav'),
     getTranslations('contact_page'),
   ]);
+
+  const isAr = locale === 'ar';
+  const displayAddress = (isAr ? details.address_ar : details.address_en) || tc('address_value');
 
   /* Quick nav links */
   const quickLinks = [
@@ -311,7 +296,7 @@ export default async function Footer() {
                   className="shrink-0 mt-0.5 text-brand-blue/60"
                 />
                 <span className="text-sm text-slate-400 leading-snug">
-                  {tc('address_value')}
+                  {displayAddress}
                 </span>
               </li>
 
