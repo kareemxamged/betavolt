@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Link } from '@/navigation';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { MapPin, Mail, Phone, MessageCircle } from 'lucide-react';
-import { getCompanyProfile } from '@/lib/company-profile';
+import { getCompanyProfile, formatWhatsAppUrl } from '@/lib/company-profile';
 
 /* ─── Footer content (social links) from CMS JSON ───── */
 interface FooterContent {
@@ -188,7 +188,7 @@ export default async function Footer() {
       ? { href: social.youtube,                                             label: 'YouTube',     Icon: IconYouTube   }
       : null,
     social.whatsapp
-      ? { href: `https://wa.me/${social.whatsapp.replace(/\D/g, '')}`,    label: 'WhatsApp',    Icon: IconWhatsApp  }
+      ? { href: formatWhatsAppUrl(social.whatsapp),                       label: 'WhatsApp',    Icon: IconWhatsApp  }
       : null,
   ].filter(Boolean) as SocialItem[];
 
@@ -363,7 +363,7 @@ export default async function Footer() {
                     className="shrink-0 mt-0.5 text-brand-blue/60"
                   />
                   <a
-                    href={`https://wa.me/${details.whatsapp.replace(/\D/g, '')}`}
+                    href={formatWhatsAppUrl(details.whatsapp)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-slate-400 hover:text-white transition-colors duration-150"

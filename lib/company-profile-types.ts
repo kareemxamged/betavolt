@@ -58,7 +58,7 @@ export function formatWhatsAppUrl(rawPhone?: string | null): string {
   if (!digits) return `https://wa.me/966580178629`;
 
   let normalized = digits;
-  if (normalized.startsWith('00966')) {
+  if (normalized.startsWith('00')) {
     normalized = normalized.slice(2);
   } else if (normalized.startsWith('05')) {
     normalized = '966' + normalized.slice(1);

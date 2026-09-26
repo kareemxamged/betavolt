@@ -193,7 +193,7 @@ function getWhatsAppUrl(phone?: string | null): string | null {
   if (!phone) return null;
   let digits = phone.replace(/\D/g, '');
   if (!digits) return null;
-  if (digits.startsWith('00966')) digits = digits.slice(2);
+  if (digits.startsWith('00')) digits = digits.slice(2);
   else if (digits.startsWith('05')) digits = '966' + digits.slice(1);
   else if (digits.startsWith('5') && digits.length === 9) digits = '966' + digits;
   return `https://wa.me/${digits}`;

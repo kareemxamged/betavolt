@@ -297,7 +297,7 @@ export default function FooterContentPage() {
           <SocialField t={t} label="Snapchat"     value={footerContent.social.snapchat}  onChange={v => setSocial('snapchat', v)}  placeholder="https://snapchat.com/add/…"    Icon={SnapchatSvg}  />
           <SocialField t={t} label="TikTok"       value={footerContent.social.tiktok}    onChange={v => setSocial('tiktok', v)}    placeholder="https://tiktok.com/@…"         Icon={TikTokSvg}    />
           <SocialField t={t} label="YouTube"      value={footerContent.social.youtube}   onChange={v => setSocial('youtube', v)}   placeholder="https://youtube.com/@…"        Icon={YoutubeSvg}   />
-          <SocialField t={t} label="WhatsApp"     value={footerContent.social.whatsapp}  onChange={v => setSocial('whatsapp', v)}  placeholder="+966 XX XXX XXXX"             Icon={WhatsAppSvg}  />
+          <SocialField t={t} label="WhatsApp"     value={footerContent.social.whatsapp}  onChange={v => setSocial('whatsapp', v)}  placeholder="+966 58 017 8629"             Icon={WhatsAppSvg}  />
         </div>
       </SectionCard>
 
