@@ -7,6 +7,8 @@ import { CheckCircle, AlertCircle, Upload, X, Send, FileText } from 'lucide-reac
 import { supabase } from '@/lib/supabase';
 import { trackEvent, getStoredUtm } from '@/components/AnalyticsBeacon';
 import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
+import { validateRegionalPhone } from '@/lib/validation/regional-phone-validator';
+import RegionalPhoneInput from '@/components/ui/RegionalPhoneInput';
 import type { ModalOption } from '@/lib/load-quote-modal-options';
 
 type Status = 'idle' | 'sending' | 'success' | 'error';
@@ -29,6 +31,8 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
   const [errorMessage, setErrorMessage] = useState('');
   const [emailValue, setEmailValue]   = useState('');
   const [emailError, setEmailError]   = useState<string | null>(null);
+  const [phoneValue, setPhoneValue]   = useState('');
+  const [phoneError, setPhoneError]   = useState<string | null>(null);
   const [fileName, setFileName]       = useState<string | null>(null);
   const [fileObj,  setFileObj]        = useState<File | null>(null);
   const [dragging, setDragging]       = useState(false);
@@ -76,6 +80,9 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
       setStatus('idle');
       setErrorMessage('');
       setEmailError(null);
+      setPhoneError(null);
+      setEmailValue('');
+      setPhoneValue('');
     }, 200);
   }, [onClose]);
 
@@ -89,16 +96,27 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
     e.preventDefault();
     setErrorMessage('');
     setEmailError(null);
+    setPhoneError(null);
 
     const fd = new FormData(e.currentTarget);
     const email = (fd.get('email') as string || emailValue).trim();
 
     // Verify corporate email before attempting submit
-    const check = validateB2bEmail(email, locale as 'ar' | 'en');
-    if (!check.isValid) {
-      setEmailError(check.message);
+    const emailCheck = validateB2bEmail(email, locale as 'ar' | 'en');
+    if (!emailCheck.isValid) {
+      setEmailError(emailCheck.message);
       setStatus('error');
-      setErrorMessage(check.message);
+      setErrorMessage(emailCheck.message);
+      return;
+    }
+
+    // Verify regional phone before attempting submit
+    const phone = ((fd.get('phone') as string) || phoneValue).trim();
+    const phoneCheck = validateRegionalPhone(phone, 'SA', locale as 'ar' | 'en');
+    if (!phoneCheck.isValid) {
+      setPhoneError(phoneCheck.message);
+      setStatus('error');
+      setErrorMessage(phoneCheck.message);
       return;
     }
 
@@ -128,7 +146,7 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
           name:         fd.get('name'),
           company:      fd.get('company'),
           email,
-          phone:        fd.get('phone'),
+          phone:        phoneCheck.formattedE164 || phone,
           project_type: fd.get('project_type'),
           timeline:     fd.get('timeline'),
           requirements: fd.get('requirements'),
@@ -147,7 +165,9 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
       setStatus('success');
       setErrorMessage('');
       setEmailError(null);
+      setPhoneError(null);
       setEmailValue('');
+      setPhoneValue('');
       trackEvent('quote_submit', {
         project_type: fd.get('project_type'),
         timeline: fd.get('timeline'),
@@ -353,15 +373,22 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
                   )}
                 </div>
                 <div>
-                  <label htmlFor="qm-phone" className={labelCls}>{t('field_phone')}</label>
-                  <input
+                  <label htmlFor="qm-phone" className={labelCls}>
+                    {t('field_phone')} *
+                  </label>
+                  <RegionalPhoneInput
                     id="qm-phone"
                     name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    className={inputCls}
-                    placeholder={t('field_phone')}
-                    dir="ltr"
+                    value={phoneValue}
+                    onChange={(val) => {
+                      setPhoneValue(val);
+                      if (phoneError) setPhoneError(null);
+                    }}
+                    error={phoneError}
+                    onErrorChange={setPhoneError}
+                    locale={locale as 'ar' | 'en'}
+                    variant="standard"
+                    required
                   />
                 </div>
               </div>

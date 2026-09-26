@@ -5,6 +5,8 @@ import { useTranslations, useLocale } from 'next-intl';
 import { CheckCircle, AlertCircle, Send } from 'lucide-react';
 import { trackEvent, getStoredUtm } from '@/components/AnalyticsBeacon';
 import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
+import { validateRegionalPhone } from '@/lib/validation/regional-phone-validator';
+import RegionalPhoneInput from '@/components/ui/RegionalPhoneInput';
 
 type Status = 'idle' | 'sending' | 'success' | 'error';
 
@@ -17,11 +19,14 @@ export default function ContactForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const [emailValue, setEmailValue] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneValue, setPhoneValue] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMessage('');
     setEmailError(null);
+    setPhoneError(null);
 
     const data = new FormData(e.currentTarget);
     const email = (data.get('email') as string || emailValue).trim();
@@ -35,13 +40,27 @@ export default function ContactForm() {
       return;
     }
 
+    // Verify regional phone if entered
+    let validatedPhone: string | null = null;
+    const rawPhone = ((data.get('phone') as string) || phoneValue).trim();
+    if (rawPhone) {
+      const phoneCheck = validateRegionalPhone(rawPhone, 'SA', locale as 'ar' | 'en');
+      if (!phoneCheck.isValid) {
+        setPhoneError(phoneCheck.message);
+        setStatus('error');
+        setErrorMessage(phoneCheck.message);
+        return;
+      }
+      validatedPhone = phoneCheck.formattedE164 || rawPhone;
+    }
+
     setStatus('sending');
 
     const payload = {
       name:    data.get('name'),
       company: data.get('company'),
       email,
-      phone:   data.get('phone'),
+      phone:   validatedPhone,
       service: data.get('service'),
       details: data.get('details'),
       locale,
@@ -63,7 +82,9 @@ export default function ContactForm() {
       setStatus('success');
       setErrorMessage('');
       setEmailError(null);
+      setPhoneError(null);
       setEmailValue('');
+      setPhoneValue('');
       trackEvent('contact_submit', {
         service: payload.service,
       });
@@ -192,14 +213,19 @@ export default function ContactForm() {
         </div>
         <div>
           <label htmlFor="phone" className={labelBase}>{t('form_phone')}</label>
-          <input
+          <RegionalPhoneInput
             id="phone"
             name="phone"
-            type="tel"
-            autoComplete="tel"
-            className={inputBase}
-            placeholder="+966 5X XXX XXXX"
-            dir="ltr"
+            value={phoneValue}
+            onChange={(val) => {
+              setPhoneValue(val);
+              if (phoneError) setPhoneError(null);
+            }}
+            error={phoneError}
+            onErrorChange={setPhoneError}
+            locale={locale as 'ar' | 'en'}
+            variant="standard"
+            required={false}
           />
         </div>
       </div>

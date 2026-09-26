@@ -4,11 +4,13 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale } from 'next-intl';
 import {
-  FileCheck2, Building2, User, Phone, Mail, ArrowDownToLine,
+  FileCheck2, Building2, User, Mail, ArrowDownToLine,
   X, CheckCircle2, AlertCircle, Loader2, MessageSquare, ChevronDown,
 } from 'lucide-react';
 import { trackEvent, getStoredUtm } from '@/components/AnalyticsBeacon';
 import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
+import { validateRegionalPhone } from '@/lib/validation/regional-phone-validator';
+import RegionalPhoneInput from '@/components/ui/RegionalPhoneInput';
 
 interface LeadMagnetModalProps {
   isOpen: boolean;
@@ -43,6 +45,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('/api/lead-magnet/download');
 
   const [formData, setFormData] = useState({
@@ -81,6 +84,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
         setStatus('idle');
         setErrorMessage('');
         setEmailError(null);
+        setPhoneError(null);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -105,13 +109,23 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
     e.preventDefault();
     setErrorMessage('');
     setEmailError(null);
+    setPhoneError(null);
 
     const email = formData.email.trim();
-    const check = validateB2bEmail(email, isAr ? 'ar' : 'en');
-    if (!check.isValid) {
-      setEmailError(check.message);
+    const emailCheck = validateB2bEmail(email, isAr ? 'ar' : 'en');
+    if (!emailCheck.isValid) {
+      setEmailError(emailCheck.message);
       setStatus('error');
-      setErrorMessage(check.message);
+      setErrorMessage(emailCheck.message);
+      return;
+    }
+
+    const phone = formData.phone.trim();
+    const phoneCheck = validateRegionalPhone(phone, 'SA', isAr ? 'ar' : 'en');
+    if (!phoneCheck.isValid) {
+      setPhoneError(phoneCheck.message);
+      setStatus('error');
+      setErrorMessage(phoneCheck.message);
       return;
     }
 
@@ -121,6 +135,7 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
       const utm = getStoredUtm();
       const payload = {
         ...formData,
+        phone: phoneCheck.formattedE164 || phone,
         locale,
         ...utm,
       };
@@ -347,23 +362,19 @@ export default function LeadMagnetModal({ isOpen, onClose }: LeadMagnetModalProp
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1">
                     {isAr ? 'رقم الهاتف أو الجوال *' : 'Phone / Mobile Number *'}
                   </label>
-                  <div className="relative">
-                    <Phone size={16} className={`absolute top-1/2 -translate-y-1/2 ${isAr ? 'right-3.5' : 'left-3.5'} text-slate-400 pointer-events-none`} />
-                    <input
-                      type="tel"
-                      required
-                      placeholder={isAr ? '05xxxxxxxx' : '05xxxxxxxx'}
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className={`
-                        w-full ${isAr ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'} py-2.5 rounded-xl
-                        bg-[#070B14] border border-[#1E2D4A]
-                        text-xs sm:text-sm text-white placeholder:text-slate-500
-                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                        transition-colors
-                      `}
-                    />
-                  </div>
+                  <RegionalPhoneInput
+                    id="lm-phone"
+                    value={formData.phone}
+                    onChange={(val) => {
+                      setFormData(prev => ({ ...prev, phone: val }));
+                      if (phoneError) setPhoneError(null);
+                    }}
+                    error={phoneError}
+                    onErrorChange={setPhoneError}
+                    locale={isAr ? 'ar' : 'en'}
+                    variant="modal-dark"
+                    required
+                  />
                 </div>
               </div>
 

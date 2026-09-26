@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { sendSalesAlert, sendCustomerConfirmation, SalesAlertPayload } from '@/lib/notifications';
 import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
+import { validateRegionalPhone } from '@/lib/validation/regional-phone-validator';
 
 export async function POST(request: Request) {
   try {
@@ -21,11 +22,23 @@ export async function POST(request: Request) {
       }, { status: 422 });
     }
 
+    let validatedPhone = phone?.trim() || null;
+    if (phone?.trim()) {
+      const phoneValidation = validateRegionalPhone(phone.trim(), 'SA', locale);
+      if (!phoneValidation.isValid) {
+        return NextResponse.json({
+          error: phoneValidation.errorType,
+          message: phoneValidation.message,
+        }, { status: 422 });
+      }
+      validatedPhone = phoneValidation.formattedE164 || phone.trim();
+    }
+
     const { error } = await supabase.from('inquiries').insert([{
       full_name: name,
       email,
       company:   company || null,
-      phone:     phone   || null,
+      phone:     validatedPhone,
       subject:   service,
       message:   details,
       status:    'new',
@@ -43,7 +56,7 @@ export async function POST(request: Request) {
       name,
       company: company || '',
       email,
-      phone,
+      phone: validatedPhone,
       subject: service,
       service,
       message: details,

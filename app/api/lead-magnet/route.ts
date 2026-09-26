@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { sendSalesAlert, sendCustomerConfirmation, SalesAlertPayload } from '@/lib/notifications';
 import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
+import { validateRegionalPhone } from '@/lib/validation/regional-phone-validator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,17 @@ export async function POST(request: NextRequest) {
       }, { status: 422 });
     }
 
+    // Regional phone verification (GCC & Egypt only, anti-dummy)
+    const phoneValidation = validateRegionalPhone(phone.trim(), 'SA', locale);
+    if (!phoneValidation.isValid) {
+      return NextResponse.json({
+        error: phoneValidation.errorType,
+        message: phoneValidation.message,
+      }, { status: 422 });
+    }
+
+    const validatedPhone = phoneValidation.formattedE164 || phone.trim();
+
     const serviceName = service_interest?.trim() || 'عام / كافة التخصصات';
     const subject = `طلب تحميل الملف التعريفي وسابقة الأعمال — ${serviceName}`;
 
@@ -57,7 +69,7 @@ export async function POST(request: NextRequest) {
       full_name: full_name.trim(),
       company: company.trim(),
       email: email.trim(),
-      phone: phone.trim(),
+      phone: validatedPhone,
       subject,
       message: messageContent,
       source: 'lead_magnet',
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest) {
       name: full_name.trim(),
       company: company.trim(),
       email: email.trim(),
-      phone: phone.trim(),
+      phone: validatedPhone,
       subject,
       service: serviceName,
       message: messageContent,

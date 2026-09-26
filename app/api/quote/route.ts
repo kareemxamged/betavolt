@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { sendSalesAlert, sendCustomerConfirmation, SalesAlertPayload } from '@/lib/notifications';
 import { validateB2bEmail } from '@/lib/validation/b2b-email-validator';
+import { validateRegionalPhone } from '@/lib/validation/regional-phone-validator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     const { name, company, email, phone, project_type, timeline, requirements, file_name, file_url, locale = 'ar', utm_source, utm_medium, utm_campaign, utm_content } = body;
 
-    if (!name || !company || !project_type || !timeline || !requirements) {
+    if (!name || !company || !project_type || !timeline || !requirements || !phone?.trim()) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -37,13 +38,24 @@ export async function POST(request: NextRequest) {
       }, { status: 422 });
     }
 
+    // Regional phone verification (GCC & Egypt only, anti-dummy)
+    const phoneValidation = validateRegionalPhone(phone.trim(), 'SA', locale);
+    if (!phoneValidation.isValid) {
+      return NextResponse.json({
+        error: phoneValidation.errorType,
+        message: phoneValidation.message,
+      }, { status: 422 });
+    }
+
+    const validatedPhone = phoneValidation.formattedE164 || phone.trim();
+
     const subject = `${project_type} — ${timeline}`;
 
     const { error } = await supabase.from('inquiries').insert({
       full_name: name,
       company,
       email:     email   || null,
-      phone:     phone   || null,
+      phone:     validatedPhone,
       subject,
       message:   requirements,
       file_name: file_name || null,
@@ -60,7 +72,7 @@ export async function POST(request: NextRequest) {
       name,
       company,
       email,
-      phone,
+      phone: validatedPhone,
       subject,
       service: project_type,
       timeline,
