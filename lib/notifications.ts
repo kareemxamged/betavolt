@@ -31,6 +31,7 @@ export interface SalesAlertPayload {
   utm_medium?: string | null;
   utm_content?: string | null;
   city?: string | null;
+  locale?: 'ar' | 'en';
 }
 
 const TYPE_CONFIG = {
@@ -301,11 +302,160 @@ export async function sendSalesAlert(payload: SalesAlertPayload): Promise<void> 
 }
 
 /**
- * Generates an executive, client-facing HTML confirmation email.
+ * Generates an executive, client-facing HTML confirmation email (bilingual EN/AR).
  */
 function generateCustomerConfirmationEmail(payload: SalesAlertPayload, profile?: CompanyProfile): string {
+  const isEn = payload.locale === 'en';
   const isQuote = payload.type === 'quote_request';
   const isLeadMagnet = payload.type === 'lead_magnet';
+  const waUrl = profile?.whatsapp ? formatWhatsAppUrl(profile.whatsapp) : 'https://wa.me/966580178629';
+  const cityAr = profile?.city_ar || 'الدمام';
+  const cityEn = profile?.city_en || 'Dammam';
+  const addressAr = profile?.address_ar || 'المدينة الصناعية الثانية، راديسون بلو، مدن، الدمام، EIGA7420';
+  const addressEn = profile?.address_en || '2nd industrial city, Radisson Blu, MODON, Dammam, EIGA7420';
+  const officialEmail = profile?.email_inquiries || 'inquiries@betavolt.com.sa';
+
+  if (isEn) {
+    const timestamp = new Date().toLocaleString('en-US', {
+      timeZone: 'Asia/Riyadh',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
+    let badgeText = '⚡ Quotation Request Received';
+    let badgeColor = '#2563EB';
+    let introParagraph = 'Thank you for your interest in partnering with BetaVolt Contracting Co. We confirm that your technical proposal request has been received. Our engineering and estimating teams are currently reviewing your project scope and specifications to prepare a comprehensive technical and commercial proposal.';
+
+    if (isLeadMagnet) {
+      badgeText = '📄 Pre-Qualification Dossier Request';
+      badgeColor = '#059669';
+      introParagraph = 'We are pleased to share the official pre-qualification dossier and corporate profile of BetaVolt Contracting Co. for 2025. The dossier outlines our engineering credentials, certifications, and proven track record across Data Centers, Smart Building Management Systems (BMS), Low Current Infrastructure, and Industrial Automation across the Kingdom.';
+    } else if (payload.type === 'contact_message') {
+      badgeText = '📩 Inquiry Received Successfully';
+      badgeColor = '#0284C7';
+      introParagraph = 'Thank you for reaching out to BetaVolt Contracting Co. We have received your inquiry and our client relations team will get back to you with all required information as soon as possible.';
+    }
+
+    const companyRow = payload.company ? '<tr><td class="info-label">🏢 Organization / Company:</td><td class="info-value">' + payload.company + '</td></tr>' : '';
+    const companyHeader = payload.company ? '<div style="font-size: 13px; color: #94A3B8; margin-bottom: 12px;">Organization: <strong style="color: #E2E8F0;">' + payload.company + '</strong></div>' : '';
+    const serviceRow = payload.service ? '<tr><td class="info-label">🎯 Project Domain / Scope:</td><td class="info-value">' + payload.service + '</td></tr>' : '';
+    const timelineRow = payload.timeline ? '<tr><td class="info-label">⏱️ Estimated Timeline:</td><td class="info-value">' + payload.timeline + '</td></tr>' : '';
+    const phoneRow = payload.phone ? '<tr><td class="info-label">📞 Registered Phone:</td><td class="info-value">' + payload.phone + '</td></tr>' : '';
+    const fileRow = payload.file_name ? '<tr><td class="info-label">📎 Project Specifications / File:</td><td class="info-value">' + payload.file_name + '</td></tr>' : '';
+
+    let nextStepsText = 'Our client relations team will review your inquiry and respond directly during official business hours.';
+    if (isQuote) {
+      nextStepsText = 'Our specialized engineers are currently examining your specifications and project requirements. A member of our technical team will contact you within <strong>24 business hours</strong> to discuss the details and present the preliminary proposal.';
+    } else if (isLeadMagnet) {
+      nextStepsText = 'You can immediately download and review the official 2025 Pre-Qualification Dossier and Engineering Case Studies using the button below.';
+    }
+
+    const actionButtons = isLeadMagnet
+      ? '<a href="https://betavolt.com.sa/api/lead-magnet/download" class="btn btn-primary" target="_blank">📥 Download Pre-Qualification Dossier (PDF)</a>'
+      : '<a href="https://betavolt.com.sa/api/lead-magnet/download" class="btn btn-primary" target="_blank">📄 View Company Pre-Qualification Profile</a>';
+
+    return `
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background-color: #070B14; color: #E2E8F0; margin: 0; padding: 24px; direction: ltr; }
+    .card { max-width: 620px; margin: 0 auto; background: #0E1524; border: 1px solid #1E2D4A; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .top-bar { height: 6px; background: linear-gradient(90deg, #2563EB, #38BDF8, #059669); }
+    .header { background: linear-gradient(135deg, #0A101D 0%, #131D31 100%); padding: 28px 24px; border-bottom: 1px solid #1E2D4A; text-align: center; }
+    .logo { font-size: 26px; font-weight: 900; letter-spacing: 2px; color: #FFFFFF; margin-bottom: 6px; }
+    .logo span { color: #38BDF8; }
+    .subtitle { font-size: 12px; color: #94A3B8; font-weight: 500; }
+    .badge { display: inline-block; margin-top: 14px; padding: 6px 18px; border-radius: 9999px; font-size: 13px; font-weight: 700; background: ${badgeColor}; color: #FFFFFF; }
+    .content { padding: 28px 24px; }
+    .greeting { font-size: 17px; font-weight: 800; color: #FFFFFF; margin-bottom: 8px; }
+    .intro { font-size: 14px; color: #CBD5E1; line-height: 1.7; margin-bottom: 22px; }
+    .info-card { background: #070B14; border: 1px solid #1E2D4A; border-radius: 12px; overflow: hidden; margin-bottom: 22px; }
+    .info-title { background: #131D31; padding: 10px 16px; font-size: 13px; font-weight: 700; color: #38BDF8; border-bottom: 1px solid #1E2D4A; }
+    .info-table { width: 100%; border-collapse: collapse; }
+    .info-table td { padding: 11px 16px; border-bottom: 1px solid #141F36; font-size: 13px; }
+    .info-table tr:last-child td { border-bottom: none; }
+    .info-label { color: #94A3B8; font-weight: 600; width: 38%; }
+    .info-value { color: #F1F5F9; font-weight: 700; }
+    .next-steps { background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 18px; margin-bottom: 24px; }
+    .next-steps-title { font-size: 14px; font-weight: 800; color: #38BDF8; margin-bottom: 6px; }
+    .next-steps-desc { font-size: 13px; color: #CBD5E1; line-height: 1.7; }
+    .actions { text-align: center; margin: 26px 0 10px 0; }
+    .btn { display: inline-block; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; margin: 5px; }
+    .btn-primary { background: linear-gradient(135deg, #2563EB, #0284C7); color: #FFFFFF; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+    .btn-wa { background: #16A34A; color: #FFFFFF; }
+    .reply-note { font-size: 12px; color: #64748B; text-align: center; margin-top: 18px; line-height: 1.6; border-top: 1px dashed #1E2D4A; padding-top: 16px; }
+    .footer { background: #070B14; padding: 22px 24px; text-align: center; font-size: 12px; color: #64748B; border-top: 1px solid #1E2D4A; line-height: 1.8; }
+    .footer strong { color: #94A3B8; }
+    .footer a { color: #38BDF8; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="top-bar"></div>
+    <div class="header">
+      <div class="logo">BETA<span>VOLT</span></div>
+      <div class="subtitle">BetaVolt Electromechanical & Intelligent Infrastructure Contracting Co.</div>
+      <div class="badge">${badgeText}</div>
+    </div>
+    <div class="content">
+      <div class="greeting">Dear Eng. / Mr. ${payload.name},</div>
+      ${companyHeader}
+      <div class="intro">${introParagraph}</div>
+
+      <div class="info-card">
+        <div class="info-title">📋 Summary of Registered Details:</div>
+        <table class="info-table">
+          <tr>
+            <td class="info-label">👤 Contact Name:</td>
+            <td class="info-value">${payload.name}</td>
+          </tr>
+          ${companyRow}
+          ${serviceRow}
+          ${timelineRow}
+          ${phoneRow}
+          ${fileRow}
+          <tr>
+            <td class="info-label">🕒 Timestamp:</td>
+            <td class="info-value">${timestamp}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="next-steps">
+        <div class="next-steps-title">⏱️ What Happens Next?</div>
+        <div class="next-steps-desc">
+          ${nextStepsText}
+        </div>
+      </div>
+
+      <div class="actions">
+        ${actionButtons}
+        <a href="${waUrl}" class="btn btn-wa" target="_blank">💬 Direct WhatsApp Inquiry</a>
+      </div>
+
+      <div class="reply-note">
+        💡 <strong>Need to provide drawings or additional project documentation?</strong><br>
+        Simply reply directly to this email and our engineering team will receive your files.
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>BetaVolt Contracting Co. | شركة بيتافولت للمقاولات</strong><br>
+      Kingdom of Saudi Arabia — ${cityEn} | المملكة العربية السعودية — ${cityAr}<br>
+      ${addressEn}<br>
+      Official Email: <a href="mailto:${officialEmail}">${officialEmail}</a> | Website: <a href="https://betavolt.com.sa">www.betavolt.com.sa</a><br>
+      © ${new Date().getFullYear()} BetaVolt Contracting Co. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+  }
+
+  // Arabic version (default)
   const timestamp = new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' });
 
   let badgeText = '⚡ تم استلام طلب عرض السعر بنجاح';
@@ -339,12 +489,6 @@ function generateCustomerConfirmationEmail(payload: SalesAlertPayload, profile?:
   const actionButtons = isLeadMagnet
     ? '<a href="https://betavolt.com.sa/api/lead-magnet/download" class="btn btn-primary" target="_blank">📥 تحميل الملف التعريفي وسابقة الأعمال (PDF)</a>'
     : '<a href="https://betavolt.com.sa/api/lead-magnet/download" class="btn btn-primary" target="_blank">📄 استعراض سابقة أعمال بيتافولت</a>';
-
-  const waUrl = profile?.whatsapp ? formatWhatsAppUrl(profile.whatsapp) : 'https://wa.me/966580178629';
-  const cityAr = profile?.city_ar || 'الدمام';
-  const cityEn = profile?.city_en || 'Dammam';
-  const addressAr = profile?.address_ar || 'المدينة الصناعية الثانية، مودون، الدمام';
-  const officialEmail = profile?.email_inquiries || 'inquiries@betavolt.com.sa';
 
   return `
 <!DOCTYPE html>
@@ -460,16 +604,30 @@ export async function sendCustomerConfirmation(payload: SalesAlertPayload): Prom
 
   const profile = await getCompanyProfile();
   const fromInbox = profile.email_inquiries || 'inquiries@betavolt.com.sa';
+  const isEn = payload.locale === 'en';
+
   const fromAddress = process.env.CUSTOMER_CONFIRMATION_FROM_EMAIL ||
-                      `بيتافولت للمقاولات | BetaVolt Contracting <${fromInbox}>`;
+                      (isEn
+                        ? `BetaVolt Contracting Co. <${fromInbox}>`
+                        : `بيتافولت للمقاولات | BetaVolt Contracting <${fromInbox}>`);
 
   let subject: string;
-  if (payload.type === 'quote_request') {
-    subject = `✨ تم استلام طلب عرض السعر بنجاح — بيتافولت للمقاولات | ${payload.service || 'مشروع جديد'}`;
-  } else if (payload.type === 'lead_magnet') {
-    subject = '📄 الملف التعريفي وسابقة الأعمال الهندسية لشركة بيتافولت لعام 2025 | BetaVolt Profile';
+  if (isEn) {
+    if (payload.type === 'quote_request') {
+      subject = `✨ Technical Proposal Request Received — BetaVolt Contracting | ${payload.service || 'New Project'}`;
+    } else if (payload.type === 'lead_magnet') {
+      subject = '📄 Official Pre-Qualification Dossier & Company Profile 2025 | BetaVolt Contracting';
+    } else {
+      subject = '✨ Inquiry Received Successfully — BetaVolt Contracting';
+    }
   } else {
-    subject = '✨ تم استلام استفساركم بنجاح — بيتافولت للمقاولات';
+    if (payload.type === 'quote_request') {
+      subject = `✨ تم استلام طلب عرض السعر بنجاح — بيتافولت للمقاولات | ${payload.service || 'مشروع جديد'}`;
+    } else if (payload.type === 'lead_magnet') {
+      subject = '📄 الملف التعريفي وسابقة الأعمال الهندسية لشركة بيتافولت لعام 2025 | BetaVolt Profile';
+    } else {
+      subject = '✨ تم استلام استفساركم بنجاح — بيتافولت للمقاولات';
+    }
   }
 
   try {
@@ -481,7 +639,7 @@ export async function sendCustomerConfirmation(payload: SalesAlertPayload): Prom
       subject,
       html: htmlBody,
     });
-    console.info(`[Customer Confirmation Success]: Sent confirmation for "${subject}" to customer: ${payload.email}`);
+    console.info(`[Customer Confirmation Success]: Sent confirmation (${isEn ? 'EN' : 'AR'}) for "${subject}" to customer: ${payload.email}`);
   } catch (err) {
     console.warn('[Customer Confirmation Warning]: Customer confirmation dispatch failed safely:', err);
   }

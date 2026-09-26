@@ -76,7 +76,7 @@ export default function ContactForm() {
 
       if (!res.ok) {
         const resData = await res.json().catch(() => ({}));
-        throw new Error(resData.message || t('form_error'));
+        throw new Error(resData.message || resData.error || t('form_error'));
       }
 
       setStatus('success');

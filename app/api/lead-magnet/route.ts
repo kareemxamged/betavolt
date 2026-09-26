@@ -95,8 +95,11 @@ export async function POST(request: NextRequest) {
       utm_medium,
       utm_campaign,
       utm_content,
+      locale: (locale as 'ar' | 'en') || 'ar',
       file_url: 'https://xdkfmduiftxisifetfmu.supabase.co/storage/v1/object/public/attachments/documents/BetaVolt-Company-Pre-Qualification.pdf',
-      file_name: 'ملف التأهيل وسابقة الأعمال الرسمية (BetaVolt-Profile.pdf)',
+      file_name: locale === 'en'
+        ? 'Official Pre-Qualification Dossier (BetaVolt-Profile.pdf)'
+        : 'ملف التأهيل وسابقة الأعمال الرسمية (BetaVolt-Profile.pdf)',
     };
 
     await Promise.allSettled([

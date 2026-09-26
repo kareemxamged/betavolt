@@ -159,7 +159,7 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
 
       if (!res.ok) {
         const resData = await res.json().catch(() => ({}));
-        throw new Error(resData.message || t('error'));
+        throw new Error(resData.message || resData.error || t('error'));
       }
 
       setStatus('success');

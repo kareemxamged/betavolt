@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       utm_medium,
       utm_campaign,
       utm_content,
+      locale: (locale as 'ar' | 'en') || 'ar',
     };
 
     await Promise.allSettled([
