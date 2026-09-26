@@ -29,12 +29,27 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
   const [visible, setVisible]         = useState(false);
   const [status, setStatus]           = useState<Status>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [emailValue, setEmailValue]   = useState('');
-  const [emailError, setEmailError]   = useState<string | null>(null);
-  const [phoneValue, setPhoneValue]   = useState('');
-  const [phoneError, setPhoneError]   = useState<string | null>(null);
-  const [fileName, setFileName]       = useState<string | null>(null);
-  const [fileObj,  setFileObj]        = useState<File | null>(null);
+  
+  // Field values
+  const [nameValue, setNameValue]               = useState('');
+  const [companyValue, setCompanyValue]         = useState('');
+  const [emailValue, setEmailValue]             = useState('');
+  const [phoneValue, setPhoneValue]             = useState('');
+  const [projectTypeValue, setProjectTypeValue] = useState('');
+  const [timelineValue, setTimelineValue]       = useState('');
+  const [requirementsValue, setRequirementsValue] = useState('');
+  const [fileName, setFileName]                 = useState<string | null>(null);
+  const [fileObj,  setFileObj]                  = useState<File | null>(null);
+
+  // Field errors
+  const [nameError, setNameError]               = useState<string | null>(null);
+  const [companyError, setCompanyError]         = useState<string | null>(null);
+  const [emailError, setEmailError]             = useState<string | null>(null);
+  const [phoneError, setPhoneError]             = useState<string | null>(null);
+  const [projectError, setProjectError]         = useState<string | null>(null);
+  const [timelineError, setTimelineError]       = useState<string | null>(null);
+  const [requirementsError, setRequirementsError] = useState<string | null>(null);
+
   const [dragging, setDragging]       = useState(false);
   const formRef     = useRef<HTMLFormElement>(null);
   const firstRef    = useRef<HTMLInputElement>(null);
@@ -79,10 +94,23 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
       onClose();
       setStatus('idle');
       setErrorMessage('');
-      setEmailError(null);
-      setPhoneError(null);
+      setNameValue('');
+      setNameError(null);
+      setCompanyValue('');
+      setCompanyError(null);
       setEmailValue('');
+      setEmailError(null);
       setPhoneValue('');
+      setPhoneError(null);
+      setProjectTypeValue('');
+      setProjectError(null);
+      setTimelineValue('');
+      setTimelineError(null);
+      setRequirementsValue('');
+      setRequirementsError(null);
+      setFileName(null);
+      setFileObj(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }, 200);
   }, [onClose]);
 
@@ -90,33 +118,91 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
     if (!file) return;
     setFileName(file.name);
     setFileObj(file);
+    if (requirementsError) setRequirementsError(null);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrorMessage('');
-    setEmailError(null);
-    setPhoneError(null);
 
-    const fd = new FormData(e.currentTarget);
-    const email = (fd.get('email') as string || emailValue).trim();
+    let hasError = false;
 
-    // Verify corporate email before attempting submit
-    const emailCheck = validateB2bEmail(email, locale as 'ar' | 'en');
-    if (!emailCheck.isValid) {
-      setEmailError(emailCheck.message);
-      setStatus('error');
-      setErrorMessage(emailCheck.message);
-      return;
+    // 1. Name validation
+    const trimmedName = nameValue.trim();
+    if (!trimmedName) {
+      setNameError(t('error_name_required'));
+      hasError = true;
+    } else {
+      setNameError(null);
     }
 
-    // Verify regional phone before attempting submit
-    const phone = ((fd.get('phone') as string) || phoneValue).trim();
-    const phoneCheck = validateRegionalPhone(phone, 'SA', locale as 'ar' | 'en');
-    if (!phoneCheck.isValid) {
-      setPhoneError(phoneCheck.message);
-      setStatus('error');
-      setErrorMessage(phoneCheck.message);
+    // 2. Company validation
+    const trimmedCompany = companyValue.trim();
+    if (!trimmedCompany) {
+      setCompanyError(t('error_company_required'));
+      hasError = true;
+    } else {
+      setCompanyError(null);
+    }
+
+    // 3. Email validation
+    const trimmedEmail = emailValue.trim();
+    if (!trimmedEmail) {
+      setEmailError(t('error_email_required'));
+      hasError = true;
+    } else {
+      const emailCheck = validateB2bEmail(trimmedEmail, locale as 'ar' | 'en');
+      if (!emailCheck.isValid) {
+        setEmailError(emailCheck.message);
+        hasError = true;
+      } else {
+        setEmailError(null);
+      }
+    }
+
+    // 4. Phone validation
+    const trimmedPhone = phoneValue.trim();
+    if (!trimmedPhone) {
+      setPhoneError(t('error_phone_required'));
+      hasError = true;
+    } else {
+      const phoneCheck = validateRegionalPhone(trimmedPhone, 'SA', locale as 'ar' | 'en');
+      if (!phoneCheck.isValid) {
+        setPhoneError(phoneCheck.message);
+        hasError = true;
+      } else {
+        setPhoneError(null);
+      }
+    }
+
+    // 5. Project type validation
+    if (!projectTypeValue) {
+      setProjectError(t('error_project_required'));
+      hasError = true;
+    } else {
+      setProjectError(null);
+    }
+
+    // 6. Timeline validation
+    if (!timelineValue) {
+      setTimelineError(t('error_timeline_required'));
+      hasError = true;
+    } else {
+      setTimelineError(null);
+    }
+
+    // 7. Requirements validation (optional if tender file is attached)
+    const hasTenderFile = !!(fileObj || fileName);
+    const trimmedReqs = requirementsValue.trim();
+    if (!hasTenderFile && !trimmedReqs) {
+      setRequirementsError(t('error_requirements_required'));
+      hasError = true;
+    } else {
+      setRequirementsError(null);
+    }
+
+    // If client validation fails, block submit without server request
+    if (hasError) {
       return;
     }
 
@@ -139,17 +225,26 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
     }
 
     try {
+      const finalRequirements = trimmedReqs ||
+        (fileName
+          ? (locale === 'ar'
+              ? `كراسة مواصفات وجداول كميات المشروع مرفقة بالملف: ${fileName}`
+              : `Project specifications and BoQ attached via document: ${fileName}`)
+          : '');
+
+      const phoneCheck = validateRegionalPhone(trimmedPhone, 'SA', locale as 'ar' | 'en');
+
       const res = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:         fd.get('name'),
-          company:      fd.get('company'),
-          email,
-          phone:        phoneCheck.formattedE164 || phone,
-          project_type: fd.get('project_type'),
-          timeline:     fd.get('timeline'),
-          requirements: fd.get('requirements'),
+          name:         trimmedName,
+          company:      trimmedCompany,
+          email:        trimmedEmail,
+          phone:        phoneCheck.formattedE164 || trimmedPhone,
+          project_type: projectTypeValue,
+          timeline:     timelineValue,
+          requirements: finalRequirements,
           file_name:    fileName ?? undefined,
           file_url,
           locale,
@@ -164,19 +259,29 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
 
       setStatus('success');
       setErrorMessage('');
-      setEmailError(null);
-      setPhoneError(null);
+      setNameValue('');
+      setNameError(null);
+      setCompanyValue('');
+      setCompanyError(null);
       setEmailValue('');
+      setEmailError(null);
       setPhoneValue('');
-      trackEvent('quote_submit', {
-        project_type: fd.get('project_type'),
-        timeline: fd.get('timeline'),
-        has_file: !!file_url,
-      });
-      formRef.current?.reset();
+      setPhoneError(null);
+      setProjectTypeValue('');
+      setProjectError(null);
+      setTimelineValue('');
+      setTimelineError(null);
+      setRequirementsValue('');
+      setRequirementsError(null);
       setFileName(null);
       setFileObj(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+
+      trackEvent('quote_submit', {
+        project_type: projectTypeValue,
+        timeline: timelineValue,
+        has_file: !!file_url,
+      });
     } catch (err: unknown) {
       setStatus('error');
       setErrorMessage(err instanceof Error ? err.message : t('error'));
@@ -303,43 +408,68 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
               {/* Row 1: Name + Company */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="qm-name" className={labelCls}>{t('field_name')}</label>
+                  <label htmlFor="qm-name" className={labelCls}>
+                    {t('field_name')} <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     ref={firstRef}
                     id="qm-name"
                     name="name"
                     type="text"
-                    required
                     autoComplete="name"
-                    className={inputCls}
+                    value={nameValue}
+                    onChange={(e) => {
+                      setNameValue(e.target.value);
+                      if (nameError) setNameError(null);
+                    }}
+                    className={`${inputCls} ${nameError ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
                     placeholder={t('field_name')}
                     dir={textDir}
                   />
+                  {nameError && (
+                    <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+                      <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                      <span>{nameError}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="qm-company" className={labelCls}>{t('field_company')}</label>
+                  <label htmlFor="qm-company" className={labelCls}>
+                    {t('field_company')} <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     id="qm-company"
                     name="company"
                     type="text"
-                    required
                     autoComplete="organization"
-                    className={inputCls}
+                    value={companyValue}
+                    onChange={(e) => {
+                      setCompanyValue(e.target.value);
+                      if (companyError) setCompanyError(null);
+                    }}
+                    className={`${inputCls} ${companyError ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
                     placeholder={t('field_company')}
                     dir={textDir}
                   />
+                  {companyError && (
+                    <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+                      <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                      <span>{companyError}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Row 1b: Email + Phone */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="qm-email" className={labelCls}>{t('field_email')}</label>
+                  <label htmlFor="qm-email" className={labelCls}>
+                    {t('field_email')} <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     id="qm-email"
                     name="email"
                     type="email"
-                    required
                     autoComplete="email"
                     value={emailValue}
                     onChange={(e) => {
@@ -374,7 +504,7 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
                 </div>
                 <div>
                   <label htmlFor="qm-phone" className={labelCls}>
-                    {t('field_phone')} *
+                    {t('field_phone')} <span className="text-red-500 font-bold">*</span>
                   </label>
                   <RegionalPhoneInput
                     id="qm-phone"
@@ -396,13 +526,18 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
               {/* Row 2: Project Type + Timeline */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="qm-project" className={labelCls}>{t('field_project_type')}</label>
+                  <label htmlFor="qm-project" className={labelCls}>
+                    {t('field_project_type')} <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     id="qm-project"
                     name="project_type"
-                    required
-                    defaultValue=""
-                    className={inputCls + ' cursor-pointer'}
+                    value={projectTypeValue}
+                    onChange={(e) => {
+                      setProjectTypeValue(e.target.value);
+                      if (projectError) setProjectError(null);
+                    }}
+                    className={`${inputCls} cursor-pointer ${projectError ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
                   >
                     <option value="" disabled>{t('field_project_placeholder')}</option>
                     {projectTypes.map((opt, i) => (
@@ -411,15 +546,26 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
                       </option>
                     ))}
                   </select>
+                  {projectError && (
+                    <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+                      <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                      <span>{projectError}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="qm-timeline" className={labelCls}>{t('field_timeline')}</label>
+                  <label htmlFor="qm-timeline" className={labelCls}>
+                    {t('field_timeline')} <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     id="qm-timeline"
                     name="timeline"
-                    required
-                    defaultValue=""
-                    className={inputCls + ' cursor-pointer'}
+                    value={timelineValue}
+                    onChange={(e) => {
+                      setTimelineValue(e.target.value);
+                      if (timelineError) setTimelineError(null);
+                    }}
+                    className={`${inputCls} cursor-pointer ${timelineError ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
                   >
                     <option value="" disabled>{t('field_timeline_placeholder')}</option>
                     {timelines.map((opt, i) => (
@@ -428,12 +574,21 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
                       </option>
                     ))}
                   </select>
+                  {timelineError && (
+                    <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+                      <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                      <span>{timelineError}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Row 3: File Upload */}
               <div>
-                <label className={labelCls}>{t('field_upload')}</label>
+                <label className={labelCls}>
+                  {t('field_upload')}{' '}
+                  <span className="text-slate-400 font-normal lowercase">({locale === 'ar' ? 'اختياري' : 'optional'})</span>
+                </label>
 
                 {/* Single persistent input — avoids onChange loss on state switch */}
                 <input
@@ -505,16 +660,29 @@ export default function QuoteModal({ isOpen, onClose, projectTypes, timelines }:
 
               {/* Row 4: Requirements */}
               <div>
-                <label htmlFor="qm-requirements" className={labelCls}>{t('field_requirements')}</label>
+                <label htmlFor="qm-requirements" className={labelCls}>
+                  {t('field_requirements')}{' '}
+                  {!fileName && !fileObj && <span className="text-red-500 font-bold">*</span>}
+                </label>
                 <textarea
                   id="qm-requirements"
                   name="requirements"
-                  required
                   rows={4}
-                  className={inputCls + ' resize-none'}
+                  value={requirementsValue}
+                  onChange={(e) => {
+                    setRequirementsValue(e.target.value);
+                    if (requirementsError) setRequirementsError(null);
+                  }}
+                  className={`${inputCls} resize-none ${requirementsError ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
                   placeholder={t('field_requirements_placeholder')}
                   dir={textDir}
                 />
+                {requirementsError && (
+                  <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-1 font-medium leading-tight">
+                    <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                    <span>{requirementsError}</span>
+                  </p>
+                )}
               </div>
 
               {/* Submit */}

@@ -89,7 +89,14 @@
     "field_project_low_current": "أنظمة التيار الخفيف",
     "field_project_placeholder": "اختر نوع المشروع",
     "field_timeline_placeholder": "اختر الجدول الزمني",
-    "field_requirements_placeholder": "صف نطاق مشروعك والمتطلبات التقنية وأي قيود…"
+    "field_requirements_placeholder": "صف نطاق مشروعك والمتطلبات التقنية وأي قيود…",
+    "error_name_required": "يرجى إدخال اسم الشخص المسؤول",
+    "error_company_required": "يرجى إدخال اسم الشركة أو الجهة",
+    "error_email_required": "يرجى إدخال البريد الإلكتروني الرسمي لجهة العمل",
+    "error_phone_required": "يرجى إدخال رقم جوال فعال للتواصل",
+    "error_project_required": "يرجى اختيار نوع وتخصص المشروع",
+    "error_timeline_required": "يرجى تحديد الجدول الزمني المتوقع",
+    "error_requirements_required": "يرجى كتابة متطلبات المشروع أو إرفاق كراسة الشروط"
   },
   "contact_page": {
     "title": "تواصل مع فريقنا الهندسي",

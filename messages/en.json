@@ -89,7 +89,14 @@
     "field_project_low_current": "Low Current Systems",
     "field_project_placeholder": "Select project type",
     "field_timeline_placeholder": "Select timeline",
-    "field_requirements_placeholder": "Describe your project scope, technical requirements, and any constraints…"
+    "field_requirements_placeholder": "Describe your project scope, technical requirements, and any constraints…",
+    "error_name_required": "Please enter contact person name",
+    "error_company_required": "Please enter company name",
+    "error_email_required": "Please enter your corporate email address",
+    "error_phone_required": "Please enter a valid contact phone number",
+    "error_project_required": "Please select the project type",
+    "error_timeline_required": "Please select an estimated timeline",
+    "error_requirements_required": "Please describe project requirements or attach specifications file"
   },
   "contact_page": {
     "title": "Connect with Our Engineering Team",

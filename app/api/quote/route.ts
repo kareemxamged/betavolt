@@ -25,8 +25,14 @@ export async function POST(request: NextRequest) {
 
     const { name, company, email, phone, project_type, timeline, requirements, file_name, file_url, locale = 'ar', utm_source, utm_medium, utm_campaign, utm_content } = body;
 
-    if (!name || !company || !project_type || !timeline || !requirements || !phone?.trim()) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const effectiveRequirements = requirements?.trim() || 
+      (file_url || file_name ? (locale === 'ar' ? 'مواصفات وجداول كميات المشروع مرفقة بالملف' : 'Project specifications and BoQ attached via document') : '');
+
+    if (!name?.trim() || !company?.trim() || !project_type?.trim() || !timeline?.trim() || !effectiveRequirements || !phone?.trim()) {
+      return NextResponse.json({ 
+        error: 'Missing required fields',
+        message: locale === 'ar' ? 'يرجى استكمال جميع الحقول الإلزامية المطلوبة' : 'Please fill in all required fields'
+      }, { status: 400 });
     }
 
     // Corporate email verification
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
       email:     email   || null,
       phone:     validatedPhone,
       subject,
-      message:   requirements,
+      message:   effectiveRequirements,
       file_name: file_name || null,
       file_url:  file_url  || null,
       source:    'quote_form',
@@ -78,7 +84,7 @@ export async function POST(request: NextRequest) {
       timeline,
       file_name,
       file_url,
-      message: requirements,
+      message: effectiveRequirements,
       utm_source,
       utm_medium,
       utm_campaign,
